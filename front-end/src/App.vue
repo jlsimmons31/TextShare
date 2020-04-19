@@ -1,6 +1,6 @@
 <template>
-  <div id="app">
-    <h1><span style="color:#00670D">Text</span><span style="color:#044C79">Share</span></h1>
+  <div id="app">    
+    
     <Home/>
   </div>
 </template>
@@ -17,11 +17,6 @@ export default {
 </script>
 
 <style>
-h1 {
-  font-family: 'Arial Black', sans-serif;
-  font-size: 40px;
-  font-weight: bold;
-}
 
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
@@ -29,6 +24,6 @@ h1 {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
-  margin-top: 60px;
+  /* margin-top: 60px; */
 }
 </style>

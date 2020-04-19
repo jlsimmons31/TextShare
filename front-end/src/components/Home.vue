@@ -1,10 +1,48 @@
 <template>
   <div class="wrapper">
     <div class="header">
-      <button @click="get()">Get</button><button @click="push()">Push</button><button @click="deleteText()">Delete</button><br><br>
+      <nav class="navbar navbar-expand navbar-light bg-light">
+      <a href="/" class="navbar-brand"><h1><span style="color:#42b983">Text</span><span style="color:#8080D0"><i class="fas fa-link" />Share</span></h1></a>
+      
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Troubleshooting&nbsp;<i class="fas fa-code"></i>
+            </a>
+            <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+              <a class="dropdown-item" @click="push()">Force Push</a>
+              <a class="dropdown-item" @click="get()">Force Retrieve</a>
+              <a class="dropdown-item" @click="debug()">Log Debug Info</a>
+            </div>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Font Size&nbsp;<i class="fas fa-font"></i>
+            </a>
+            <div class="dropdown-menu" aria-labelledby="navbarDropdown" style="font-family: 'OCR A', 'Lucida Console';">
+              <a class="dropdown-item" style="font-size:18px" @click="changeFontSize('extrasmall')">Extra Small</a>
+              <a class="dropdown-item" style="font-size:22px" @click="changeFontSize('small')">Small</a>
+              <a class="dropdown-item" style="font-size:26px" @click="changeFontSize('medium')">Medium</a>
+              <a class="dropdown-item" style="font-size:30px" @click="changeFontSize('large')">Large</a>
+            </div>
+          </li>
+          <li class="nav-item">            
+            <button class="btn nav-link" :data-clipboard-text="extLink()">Copy Link&nbsp;<i class="fas fa-copy"></i></button>
+          </li>
+          <li class="nav-item">            
+            <button class="btn nav-link" style="color:#EF1010" @click="close()">Delete Note&nbsp;<i class="fas fa-trash-alt"></i></button>
+          </li>
+        </ul>
+        <form class="form-inline my-2 my-lg-0">
+          <!-- <input class="form-control mr-sm-2k" type="search" placeholder="Search" aria-label="Search"> -->
+        </form>
+      </div>
+    </nav>
+      <!-- <button @click="get()">Get</button><button @click="push()">Push</button><button @click="deleteText()">Delete</button><br><br> -->
     </div>
     <div class="text" v-if="textId">
-      <textarea placeholder="Type here.." v-model="text" @input="txtChanged()" />
+      <textarea placeholder="Type here.." v-model="text" v-bind:style="{ fontSize: fontSize + 'px' }" @input="txtChanged()" />
     </div>
     <div v-else>
       <p>Loading...</p>
@@ -14,6 +52,7 @@
 
 <script>
 const axios = require('axios');
+const ClipboardJS = require('clipboard');
 export default {
   name: 'Home',
   data() {
@@ -22,15 +61,21 @@ export default {
       text: "",
       publicPushKey: "BC4yQNCgkoLAGPLDZRPVD3iQll7lhnKUETgWin6PjP4vOs_S-IS8ojb-xU8tks9zi3B4ZLJNfuzt04iVvUe7sbY",
       timer: null,
+      fontSize: 26
     };
   },
   props: {
     
   },
-  created() {    
+  async created() {    
+    //bind clipboard js
+    new ClipboardJS('.btn');
+
     // assign the client a random id so that it knows
     // when it's a different computer sending the changes
     this.clientId = Math.random().toString(36).substr(2, 6);
+
+    // console.log("created, client id: " + this.clientId);
 
     // get (or create) existing note
     if (window.location.search.includes('id')) {
@@ -39,7 +84,17 @@ export default {
       let match = regex.exec(window.location.search);
       if (match) {
         this.textId = match[2];
-        this.get();
+        //
+        // console.log("found existing text: " + this.textId);
+        //
+        await this.get();
+
+        //
+
+        // console.log("get has got, subscribing to push");
+        
+        // subscribe to push notifications
+        this.subscribePushNotifications();
       }
       else {
         this.init();
@@ -47,9 +102,6 @@ export default {
     }
     else
       this.init();
-
-    // subscribe to push notifications
-    this.subscribePushNotifications();
   },
   methods: {
     urlBase64ToUint8Array(base64String) {
@@ -74,7 +126,9 @@ export default {
 
 
         navigator.serviceWorker.addEventListener('message', event => {
+            // console.log("msg received from sw");
             if (this.clientId != event.data.clientId) {
+              // console.log("getting");
               this.get();
               //
               // console.log("getting bc client is diff");
@@ -88,7 +142,7 @@ export default {
           applicationServerKey: this.urlBase64ToUint8Array(this.publicPushKey),
         });
 
-        axios.post('/api/subscribe', subscription).then((res) => {
+        axios.post("/api/subscribe/" + this.textId + "?clientId=" + this.clientId, subscription).then((res) => {
           res;
         });
       }
@@ -101,6 +155,7 @@ export default {
       if (txt.data) {
         // this.textId = txt.data.NewTextID;
         window.location.search = "?id=" + txt.data.NewTextID;
+        console.log("created new text, id: " + txt.data.textId);
       }
       else
         alert("failed to create new note");
@@ -118,7 +173,7 @@ export default {
         });
         req.catch((err) => {
           this.init();
-          alert("Invalid url. Creating new page");
+          alert("Invalid url. You may be trying to access a note that no longer exists. A new note will be created.");
           err;
         })
       }
@@ -151,6 +206,29 @@ export default {
       // Disable timer if applicable
       this.push();
     },
+    debug() {
+      console.log("Troubleshooting information:");
+      console.log("Client ID: " + this.clientId);
+      console.log("Text Id: " + this.textId);
+    },
+    changeFontSize(size) {
+      // this.fontsize = size;
+      if (size == "extrasmall")
+        this.fontSize = 18;
+      else if (size == "small")
+        this.fontSize = 22;
+      else if (size == "medium")
+        this.fontSize = 26;
+      else if (size == "large")
+        this.fontSize = 30;
+        
+    },
+    close() {
+      this.deleteText();
+    },
+    extLink() {
+      return window.location;
+    }
     // closing(e) {
     //   alert('Closing');
     //   this.deleteText();
@@ -164,22 +242,42 @@ export default {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 
-/* body {margin: 0; height: 100%; overflow: hidden} */
+a:hover {
+  cursor: pointer;
+}
 
-div.wrapper {
-  
+h1 {
+  font-family: 'Arial Black', sans-serif;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+div.text {
+  position: absolute;
+  top: 60px;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  margin: 0px;
+  border: none;
 }
 textarea {
-  position: absolute;
-  bottom:0px;
-  left: 0px;
-  height: 80%;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
   width: 100%;
+  height: 100%;
+  
+  /* background-color: azure; */
+
   resize: none;
   border: none;
   padding: 32px;
 
-  font-size: 28px;
+  /* font-size: 12px; */
   font-family: 'OCR A', 'Lucida Console';
 }
 

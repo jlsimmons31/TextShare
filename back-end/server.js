@@ -24,11 +24,20 @@ const pubKey = "BC4yQNCgkoLAGPLDZRPVD3iQll7lhnKUETgWin6PjP4vOs_S-IS8ojb-xU8tks9z
 const privKey = "_0RjQO921seP8xtDuYH0RIlsU0__cEUl3kaZBCC5mKo";
 webPush.setVapidDetails("mailto:johnny.simmons@outlook.com", pubKey, privKey);
 
-var subscription = null;
+// var subscriptions = ;
+var subscriptions = new Map();
 
-app.post("/api/subscribe", async (req, res) => {
+
+app.post("/api/subscribe/:id", async (req, res) => {
 	try {
-		subscription = req.body;
+		let subs = subscriptions.get(req.params.id);
+		if (!subs)
+			subs = [ req.body ];
+		else
+			subs.push(req.body);
+		subscriptions.set(req.params.id, subs);
+
+		// console.log("Successful subscription from client: " + req.query.clientId + " for text id " + req.params.id);
 		res.sendStatus(200);
 	}
 	catch (ex) {
@@ -55,6 +64,7 @@ app.post("/api", async (req, res) => {
 	try {
 		var txt = new Text({ modified: Date() });
 		txt.save();
+		subscriptions.set(txt._id, []);
 		res.send({ "NewTextID": txt._id });
 	}
 	catch (ex) {
@@ -72,11 +82,18 @@ app.put("/api/:id", async (req, res) => {
 		res.sendStatus(200);
 
 		//Notify subscribed of changes
-		if (subscription) {
+		let subs = subscriptions.get(req.params.id);
+		subs.forEach(s => {
 			let payload = JSON.stringify({ clientId: req.body.clientId });
-			webPush.sendNotification(subscription, payload);
-			console.log("sent push");
-		}
+			webPush.sendNotification(s, payload);
+			// console.log("sent push for text id: " + req.params.id);
+		});
+		
+		// if (subscriptions.length) {
+		// 	let payload = JSON.stringify({ clientId: req.body.clientId });
+		// 	webPush.sendNotification(subscription, payload);
+		// 	console.log("sent push");
+		// }
 	}
 	catch (ex) {
 		console.log(ex);
@@ -116,7 +133,8 @@ async function cleanup() {
 			var diffMinutes = moment().diff(x.modified, 'minutes');
 			if (diffMinutes > 60) {
 				deletionCount++;
-				x.delete();				
+				subscriptions.delete(x._id);
+				x.delete();
 			}
 		});
 		console.log("Cleanup completed at " + moment().format("hh:mm:ss") + ". " + deletionCount + " items deleted");
