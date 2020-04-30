@@ -9,7 +9,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // connect to the mongodb database
-mongoose.connect('mongodb://localhost:27017/textshare', {
+mongoose.connect('mongodb://text-share:txt-j93-M3J@johnlsimmons.com:27017/text-share', {
   useUnifiedTopology: true,
   useNewUrlParser: true
 });
